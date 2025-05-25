@@ -1,0 +1,23 @@
+{
+  "name": "tg-cli",
+  "version": "1.0.0",
+  "description": "Minimalist Telegram CLI for personal account",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "telegram": "^2.22.2",
+    "input": "^1.0.1",
+    "chalk": "^4.1.2"
+  },
+  "type": "module",
+  "keywords": [
+    "telegram",
+    "cli",
+    "chat"
+  ],
+  "author": "",
+  "license": "MIT"
+}
