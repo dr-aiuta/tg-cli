@@ -32,6 +32,9 @@ export class MessageHandler {
         
         const myId = this.client.me?.id?.toString();
         
+        // Skip messages from self
+        if (senderId === myId) return;
+        
         // Handle both direct messages and channel messages
         let chatId = null;
         if (event.className === 'UpdateNewChannelMessage') {
@@ -46,81 +49,79 @@ export class MessageHandler {
         const isCurrentChat = this.contactManager.getCurrentChatId() && 
           (chatId === this.contactManager.getCurrentChatId() || senderId === this.contactManager.getCurrentChatId());
         
-        // Show messages from current chat contact, or other contacts if not in focus mode
-        const isFromCurrentContact = isCurrentChat;
-        const isFromOtherContact = !isCurrentChat;
+        // Get sender and channel information
+        let senderName = this.contactManager.getContacts().get(senderId)?.name;
+        let channelName = '';
         
-        const shouldNotify = !this.settings.quietMode && senderId !== myId && (
-          isFromCurrentContact || // Always show messages from current chat
-          (isFromOtherContact && (!this.settings.focusMode || !this.contactManager.getCurrentChat())) // Show others only if not in focus mode
-        );
-        
-        if (shouldNotify) {
-          // Get sender name from contacts or channel info
-          let senderName = this.contactManager.getContacts().get(senderId)?.name;
-          let channelName = '';
-          
-          // For channel messages, get both sender and channel info
-          if (event.className === 'UpdateNewChannelMessage') {
-            try {
-              // Get channel info
-              const channel = await this.client.getEntity(parseInt(chatId));
-              channelName = channel.title || channel.username || 'Unknown Channel';
-              
-              // Get sender info if available
-              if (senderId && senderId !== myId) {
-                if (!senderName) {
-                  try {
-                    const user = await this.client.getEntity(parseInt(senderId));
-                    senderName = user.firstName + (user.lastName ? ` ${user.lastName}` : '') || user.username || 'Unknown';
-                  } catch {
-                    senderName = 'Unknown';
-                  }
+        // For channel messages, get both sender and channel info
+        if (event.className === 'UpdateNewChannelMessage') {
+          try {
+            // Get channel info
+            const channel = await this.client.getEntity(parseInt(chatId));
+            channelName = channel.title || channel.username || 'Unknown Channel';
+            
+            // Get sender info if available
+            if (senderId && senderId !== myId) {
+              if (!senderName) {
+                try {
+                  const user = await this.client.getEntity(parseInt(senderId));
+                  senderName = user.firstName + (user.lastName ? ` ${user.lastName}` : '') || user.username || 'Unknown';
+                } catch {
+                  senderName = 'Unknown';
                 }
-              } else {
-                senderName = channelName; // Channel itself is the sender
               }
+            } else {
+              senderName = channelName; // Channel itself is the sender
+            }
+          } catch {
+            channelName = 'Unknown Channel';
+            senderName = senderName || 'Unknown';
+          }
+        } else {
+          // For direct messages
+          if (!senderName) {
+            try {
+              // Try to get user info
+              const user = await this.client.getEntity(parseInt(senderId));
+              senderName = user.firstName + (user.lastName ? ` ${user.lastName}` : '') || user.username || 'Unknown';
             } catch {
-              channelName = 'Unknown Channel';
-              senderName = senderName || 'Unknown';
+              senderName = 'Unknown';
+            }
+          }
+        }
+        
+        const time = new Date().toLocaleTimeString();
+        
+        if (isCurrentChat) {
+          // Messages from current chat/channel - always display and show macOS notification
+          if (event.className === 'UpdateNewChannelMessage') {
+            const displayName = channelName && senderName !== channelName ? 
+              `${senderName} in ${channelName}` : senderName;
+            console.log(chalk.green(`\n📢 [${time}] ${displayName}: ${messageText}`));
+            
+            // Show macOS notification for current channel messages
+            if (this.notificationManager) {
+              this.notificationManager.showCurrentChatNotification(senderName, messageText, channelName);
             }
           } else {
-            // For direct messages
-            if (!senderName) {
-              try {
-                // Try to get user info
-                const user = await this.client.getEntity(parseInt(senderId));
-                senderName = user.firstName + (user.lastName ? ` ${user.lastName}` : '') || user.username || 'Unknown';
-              } catch {
-                senderName = 'Unknown';
-              }
+            console.log(chalk.green(`\n💬 [${time}] ${senderName}: ${messageText}`));
+            
+            // Show macOS notification for current direct messages
+            if (this.notificationManager) {
+              this.notificationManager.showCurrentChatNotification(senderName, messageText);
             }
           }
           
-          // Add notification with timestamp
-          const time = new Date().toLocaleTimeString();
+          // Re-prompt if we're in a chat
+          if (this.contactManager.getCurrentChat()) {
+            process.stdout.write(chalk.blue('You: '));
+          }
+        } else {
+          // Messages from other chats/channels - show in-app notification if enabled
+          const shouldShowInApp = this.notificationManager && this.notificationManager.shouldShowInAppNotification() && 
+            (!this.settings.focusMode || !this.contactManager.getCurrentChat());
           
-          if (isFromCurrentContact) {
-            // Highlight messages from current chat contact or channel
-            if (event.className === 'UpdateNewChannelMessage') {
-              const displayName = channelName && senderName !== channelName ? 
-                `${senderName} in ${channelName}` : senderName;
-              console.log(chalk.green(`\n📢 [${time}] ${displayName}: ${messageText}`));
-              
-              // Show macOS notification for current channel messages
-              if (this.notificationManager) {
-                this.notificationManager.showChannelMessageNotification(senderName, channelName, messageText);
-              }
-            } else {
-              console.log(chalk.green(`\n💬 [${time}] ${senderName}: ${messageText}`));
-              
-              // Show macOS notification for current direct messages
-              if (this.notificationManager) {
-                this.notificationManager.showDirectMessageNotification(senderName, messageText);
-              }
-            }
-          } else {
-            // Regular notifications from other contacts or channels
+          if (shouldShowInApp) {
             if (event.className === 'UpdateNewChannelMessage') {
               const displayName = channelName && senderName !== channelName ? 
                 `${senderName} in ${channelName}` : senderName;
@@ -128,11 +129,11 @@ export class MessageHandler {
             } else {
               console.log(chalk.magenta(`\n📨 [${time}] New message from ${senderName}: ${messageText}`));
             }
-          }
-          
-          // Re-prompt if we're in a chat
-          if (this.contactManager.getCurrentChat()) {
-            process.stdout.write(chalk.blue('You: '));
+            
+            // Re-prompt if we're in a chat
+            if (this.contactManager.getCurrentChat()) {
+              process.stdout.write(chalk.blue('You: '));
+            }
           }
         }
       }
@@ -151,12 +152,31 @@ export class MessageHandler {
         const myId = this.client.me?.id?.toString();
         
         if (senderId !== myId) {
-          let senderName = this.contactManager.getContacts().get(senderId)?.name || 'Unknown';
-          const time = new Date().toLocaleTimeString();
-          console.log(chalk.yellow(`\n✏️ [${time}] ${senderName} edited: ${msg.message}`));
+          // Check if this is from current chat
+          let chatId = null;
+          if (event.className === 'UpdateEditChannelMessage') {
+            chatId = msg.peerId?.channelId?.toString() || msg.chatId?.toString();
+          } else {
+            chatId = senderId;
+          }
           
-          if (this.contactManager.getCurrentChat()) {
-            process.stdout.write(chalk.blue('You: '));
+          const isCurrentChat = this.contactManager.getCurrentChatId() && 
+            (chatId === this.contactManager.getCurrentChatId() || senderId === this.contactManager.getCurrentChatId());
+          
+          // Always show edits from current chat, only show others if in-app notifications are enabled
+          const shouldShow = isCurrentChat || 
+            (this.notificationManager && this.notificationManager.shouldShowInAppNotification() && 
+             (!this.settings.focusMode || !this.contactManager.getCurrentChat()));
+          
+          if (shouldShow) {
+            let senderName = this.contactManager.getContacts().get(senderId)?.name || 'Unknown';
+            const time = new Date().toLocaleTimeString();
+            const color = isCurrentChat ? chalk.yellow : chalk.gray;
+            console.log(color(`\n✏️ [${time}] ${senderName} edited: ${msg.message}`));
+            
+            if (this.contactManager.getCurrentChat()) {
+              process.stdout.write(chalk.blue('You: '));
+            }
           }
         }
       }

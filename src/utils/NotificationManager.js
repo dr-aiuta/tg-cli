@@ -11,9 +11,9 @@ export class NotificationManager {
    * @param {string} message - The message content
    * @param {string} subtitle - Optional subtitle (channel name, etc.)
    */
-  showMessageNotification(title, message, subtitle = '') {
-    // Don't show notifications if in quiet mode
-    if (this.settings.quietMode) {
+  showMacosNotification(title, message, subtitle = '') {
+    // Don't show macOS notifications if disabled
+    if (!this.settings.macosNotifications) {
       return;
     }
 
@@ -40,6 +40,29 @@ export class NotificationManager {
   }
 
   /**
+   * Show notification for current chat/channel messages (macOS notification)
+   * @param {string} senderName - Name of the message sender
+   * @param {string} channelName - Name of the channel (optional)
+   * @param {string} message - The message content
+   */
+  showCurrentChatNotification(senderName, message, channelName = null) {
+    if (channelName) {
+      const subtitle = senderName !== channelName ? `${senderName} in ${channelName}` : channelName;
+      this.showMacosNotification(channelName, message, subtitle);
+    } else {
+      this.showMacosNotification(senderName, message);
+    }
+  }
+
+  /**
+   * Check if in-app notifications are enabled
+   * @returns {boolean} True if in-app notifications should be shown
+   */
+  shouldShowInAppNotification() {
+    return this.settings.inAppNotifications;
+  }
+
+  /**
    * Get the app icon path (optional)
    * @returns {string|null} Path to icon or null if not available
    */
@@ -50,23 +73,31 @@ export class NotificationManager {
   }
 
   /**
-   * Show notification for channel messages
+   * Show notification for channel messages (legacy method - now routes to current chat)
    * @param {string} senderName - Name of the message sender
    * @param {string} channelName - Name of the channel
    * @param {string} message - The message content
    */
   showChannelMessageNotification(senderName, channelName, message) {
-    const title = channelName;
-    const subtitle = senderName !== channelName ? `${senderName} in ${channelName}` : channelName;
-    this.showMessageNotification(title, message, subtitle);
+    this.showCurrentChatNotification(senderName, message, channelName);
   }
 
   /**
-   * Show notification for direct messages
+   * Show notification for direct messages (legacy method - now routes to current chat)
    * @param {string} senderName - Name of the message sender
    * @param {string} message - The message content
    */
   showDirectMessageNotification(senderName, message) {
-    this.showMessageNotification(senderName, message);
+    this.showCurrentChatNotification(senderName, message);
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   * @param {string} title - The notification title (sender name)
+   * @param {string} message - The message content
+   * @param {string} subtitle - Optional subtitle (channel name, etc.)
+   */
+  showMessageNotification(title, message, subtitle = '') {
+    this.showMacosNotification(title, message, subtitle);
   }
 } 
