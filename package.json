@@ -5,11 +5,14 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "clear-session": "node index.js --clear-session",
+    "help": "node index.js --help"
   },
   "dependencies": {
     "chalk": "^4.1.2",
     "input": "^1.0.1",
+    "node-fetch": "^3.3.2",
     "node-notifier": "^10.0.1",
     "telegram": "^2.22.2"
   },

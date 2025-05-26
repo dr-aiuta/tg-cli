@@ -28,4 +28,17 @@ export class SessionManager {
       console.log(chalk.yellow('⚠️ Could not save session'));
     }
   }
+
+  clearSession() {
+    try {
+      if (fs.existsSync(this.sessionFile)) {
+        fs.unlinkSync(this.sessionFile);
+        console.log(chalk.green('✅ Session cleared'));
+        return true;
+      }
+    } catch (error) {
+      console.log(chalk.yellow('⚠️ Could not clear session'));
+    }
+    return false;
+  }
 } 
