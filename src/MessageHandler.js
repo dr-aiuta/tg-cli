@@ -1,10 +1,11 @@
 import chalk from 'chalk';
 
 export class MessageHandler {
-  constructor(client, contactManager, settings) {
+  constructor(client, contactManager, settings, notificationManager) {
     this.client = client;
     this.contactManager = contactManager;
     this.settings = settings;
+    this.notificationManager = notificationManager;
   }
 
   async handleNewMessage(event) {
@@ -105,8 +106,18 @@ export class MessageHandler {
               const displayName = channelName && senderName !== channelName ? 
                 `${senderName} in ${channelName}` : senderName;
               console.log(chalk.green(`\n📢 [${time}] ${displayName}: ${messageText}`));
+              
+              // Show macOS notification for current channel messages
+              if (this.notificationManager) {
+                this.notificationManager.showChannelMessageNotification(senderName, channelName, messageText);
+              }
             } else {
               console.log(chalk.green(`\n💬 [${time}] ${senderName}: ${messageText}`));
+              
+              // Show macOS notification for current direct messages
+              if (this.notificationManager) {
+                this.notificationManager.showDirectMessageNotification(senderName, messageText);
+              }
             }
           } else {
             // Regular notifications from other contacts or channels

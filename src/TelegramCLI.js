@@ -8,6 +8,7 @@ import { ContactManager } from './ContactManager.js';
 import { MessageHandler } from './MessageHandler.js';
 import { MenuManager } from './MenuManager.js';
 import { Settings } from './utils/Settings.js';
+import { NotificationManager } from './utils/NotificationManager.js';
 
 export class TelegramCLI {
   constructor() {
@@ -17,6 +18,7 @@ export class TelegramCLI {
     this.contactManager = null;
     this.messageHandler = null;
     this.menuManager = null;
+    this.notificationManager = null;
   }
 
   async init() {
@@ -66,7 +68,8 @@ export class TelegramCLI {
     
     // Initialize managers
     this.contactManager = new ContactManager(this.client);
-    this.messageHandler = new MessageHandler(this.client, this.contactManager, this.settings);
+    this.notificationManager = new NotificationManager(this.settings);
+    this.messageHandler = new MessageHandler(this.client, this.contactManager, this.settings, this.notificationManager);
     this.menuManager = new MenuManager(this.contactManager, this.settings);
     
     // Load contacts and start CLI
